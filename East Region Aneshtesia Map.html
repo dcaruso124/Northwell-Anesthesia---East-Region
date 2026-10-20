@@ -1,0 +1,254 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+  <title>Long Island Facilities Map</title>  
+  <meta charset="utf-8" />  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />  
+  <style>  
+    body { margin:0; font-family: Arial, sans-serif; }  
+    #map { height: 100vh; width: 100%; }  
+    .legend {  
+      background: white; padding: 12px; line-height: 1.8em;  
+      border-radius: 8px; box-shadow: 0 0 8px rgba(0,0,0,0.3);  
+      font-size: 14px;  
+      min-width: 200px;  
+    }  
+    .legend-title { font-weight: bold; margin-bottom: 6px; font-size: 15px; }  
+    .legend-item {  
+      cursor: pointer; padding: 4px 6px; border-radius: 4px;  
+      transition: background 0.2s; user-select: none;  
+    }  
+    .legend-item:hover { background: #f0f0f0; }  
+    .legend-item.disabled { opacity: 0.4; }  
+    .legend i {  
+      width: 14px; height: 14px; display:inline-block; margin-right:8px;  
+      border-radius: 50%; vertical-align: middle;  
+    }  
+    .legend-hint {  
+      font-size: 11px; color: #777; margin-top: 8px;  
+      border-top: 1px solid #eee; padding-top: 6px;  
+    }  
+    .legend-new-key {  
+      margin-top: 8px; padding-top: 8px;  
+      border-top: 1px solid #eee; font-size: 12px;  
+    }  
+    .legend-new-badge {  
+      display: inline-block; background: #FFB300; color: #000;  
+      font-size: 10px; font-weight: bold; padding: 1px 6px;  
+      border-radius: 10px; margin-right: 6px; vertical-align: middle;  
+    }
+
+    /* Combined dot + halo marker (single DOM element = perfect alignment) */  
+    .combo-marker {  
+      position: relative;  
+      width: 24px;  
+      height: 24px;  
+    }  
+    .halo-pulse {  
+      position: absolute;  
+      top: 50%; left: 50%;  
+      width: 24px; height: 24px;  
+      border-radius: 50%;  
+      background: rgba(255, 179, 0, 0.6);  
+      transform: translate(-50%, -50%);  
+      animation: pulse 1.6s infinite ease-out;  
+      transition: opacity 0.2s;  
+    }  
+    @keyframes pulse {  
+      0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0.9; }  
+      70%  { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }  
+      100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }  
+    }  
+    .combo-dot {  
+      position: absolute;  
+      top: 50%; left: 50%;  
+      width: 16px; height: 16px;  
+      border-radius: 50%;  
+      transform: translate(-50%, -50%);  
+      border: 2.5px solid #FFB300;  
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.3);  
+      transition: opacity 0.2s;  
+    }
+
+    .leaflet-tooltip.new-tooltip {  
+      background: #FFB300; border: 1px solid #c98a00; color: #000;  
+      font-weight: bold; font-size: 10px; padding: 2px 6px;  
+      border-radius: 8px; transition: opacity 0.2s;  
+    }  
+    .leaflet-tooltip.new-tooltip::before { border-top-color: #c98a00; }  
+  </style>  
+</head>  
+<body>  
+<div id="map"></div>  
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>  
+<script>  
+  var map = L.map('map').setView([40.85, -73.2], 10);
+
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {  
+    attribution: 'Tiles © Esri — Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012',  
+    maxZoom: 19  
+  }).addTo(map);
+
+  var colors = {  
+    "Office Practice": "blue",  
+    "Ambulatory Surgery Center": "green",  
+    "Hospital": "red"  
+  };
+
+  var sites = [  
+    {name:"Orlin & Cohen - Yaphank Office (go live 12/11/26)", type:"Office Practice", coverage:"SSUH", address:"1103 Boulevard East Building B, Yaphank", lat:40.8276, lng:-72.9170, isNew:true, goLive:"12/11/2026"},  
+    {name:"Garden City SurgiCenter [Joint Venture]", type:"Ambulatory Surgery Center", coverage:"SSUH", address:"400 Endo Boulevard, Garden City", lat:40.7306, lng:-73.6396},  
+    {name:"Digestive Health Center of Huntington [Joint Venture]", type:"Ambulatory Surgery Center", coverage:"SSUH", address:"195 East Main Street, Huntington", lat:40.8695, lng:-73.4215},  
+    {name:"Melville SC, LLC [Joint Venture]", type:"Ambulatory Surgery Center", coverage:"SSUH", address:"1895 Walt Whitman Road, Melville", lat:40.7891, lng:-73.4349},  
+    {name:"South Shore Surgery Center, LLC (SSSC) [Joint Venture]", type:"Ambulatory Surgery Center", coverage:"SSUH", address:"53 Brentwood Road, Bay Shore", lat:40.7312, lng:-73.2465},  
+    {name:"Syosset SurgiCenter [Joint Venture]", type:"Ambulatory Surgery Center", coverage:"SSUH", address:"240 Jericho Turnpike, Syosset", lat:40.8219, lng:-73.5036},  
+    {name:"Mather Memorial Hospital", type:"Hospital", coverage:"Eastern", address:"75 N Country Rd, Port Jefferson", lat:40.9470, lng:-73.0668},  
+    {name:"Huntington Hospital", type:"Hospital", coverage:"Eastern", address:"270 Park Ave., Huntington", lat:40.8650, lng:-73.4280},  
+    {name:"Peconic Bay Medical Center (PBMC)", type:"Hospital", coverage:"Eastern", address:"1300 Roanoke Avenue, Riverhead", lat:40.9201, lng:-72.6650},  
+    {name:"South Shore University Hospital (SSUH)", type:"Hospital", coverage:"Eastern", address:"301 East Main Street, Bay Shore", lat:40.7270, lng:-73.2420},  
+    {name:"Glen Cove Hospital", type:"Hospital", coverage:"Eastern", address:"101 St. Andrews Lane, Glen Cove", lat:40.8615, lng:-73.6280},  
+    {name:"Plainview Hospital", type:"Hospital", coverage:"Eastern", address:"888 Old Country Road, Plainview", lat:40.7746, lng:-73.4738},  
+    {name:"Syosset Hospital", type:"Hospital", coverage:"Eastern", address:"221 Jericho Tpke, Syosset", lat:40.8232, lng:-73.4985},  
+    {name:"NWH Imaging At Syosset", type:"Office Practice", coverage:"Eastern", address:"100 Lafayette Drive, Syosset", lat:40.8198, lng:-73.4934},  
+    {name:"Vascular Access Center", type:"Office Practice", coverage:"SSUH", address:"175 E Main St., Huntington", lat:40.8698, lng:-73.4210},  
+    {name:"Manorville GI (Go-live 1/1/2027)", type:"Office Practice", coverage:"PBMC/SSUH", address:"496 County Road 111 Build D, Manorville", lat:40.86947847506068, lng:-72.79734997729514, isNew:true, goLive:"1/1/2027"},  
+    {name:"Port Jeff Surgery Center (Go-live 1/1/2027)", type:"Ambulatory Surgery Center", coverage:"Mather/SSUH", address:"1500 New York 112 Build 3, Port Jeff Station", lat:40.91044162769289, lng:-73.03092688167338, isNew:true, goLive:"1/1/2027"}  
+  ];
+
+  var markers = []; // {marker, type, isDiv}
+
+  sites.forEach(function(site) {
+
+    var marker;
+
+    if (site.isNew) {  
+      // Combined dot + halo in ONE element — guarantees perfect alignment  
+      var comboIcon = L.divIcon({  
+        className: '', // avoid default leaflet styling conflicts  
+        html: '<div class="combo-marker">' +  
+                '<div class="halo-pulse"></div>' +  
+                '<div class="combo-dot" style="background:' + colors[site.type] + ';"></div>' +  
+              '</div>',  
+        iconSize: [24, 24],  
+        iconAnchor: [12, 12]  
+      });
+
+      marker = L.marker([site.lat, site.lng], { icon: comboIcon }).addTo(map);
+
+    } else {  
+      marker = L.circleMarker([site.lat, site.lng], {  
+        radius: 8,  
+        fillColor: colors[site.type],  
+        color: "#333",  
+        weight: 1,  
+        opacity: 1,  
+        fillOpacity: 0.85  
+      }).addTo(map);  
+    }
+
+    var popupContent =  
+      "<b>" + site.name + "</b><br>" +  
+      "Type: " + site.type + "<br>" +  
+      "Coverage: " + site.coverage + "<br>" +  
+      "Address: " + site.address;
+
+    if (site.isNew) {  
+      popupContent += "<br><span style='background:#FFB300; color:#000; font-weight:bold; font-size:11px; padding:2px 6px; border-radius:8px; display:inline-block; margin-top:4px;'>🆕 Opening " + site.goLive + "</span>";  
+    }
+
+    marker.bindPopup(popupContent);
+
+    if (site.isNew) {  
+      marker.bindTooltip("NEW", {  
+        permanent: true,  
+        direction: "top",  
+        offset: [0, -10],  
+        className: "new-tooltip"  
+      });  
+    }
+
+    markers.push({marker: marker, type: site.type, isDiv: !!site.isNew});  
+  });
+
+  var hiddenTypes = {};
+
+  function updateMarkerStyles(hoverType) {  
+    markers.forEach(function(item) {  
+      var isHidden = hiddenTypes[item.type];  
+      var isFadedByHover = hoverType && item.type !== hoverType;
+
+      if (isHidden) {  
+        if (map.hasLayer(item.marker)) {  
+          map.removeLayer(item.marker);  
+        }  
+      } else {  
+        if (!map.hasLayer(item.marker)) {  
+          item.marker.addTo(map);  
+        }
+
+        var targetOpacity = isFadedByHover ? 0.08 : 1;
+
+        if (item.isDiv) {  
+          item.marker.setOpacity(targetOpacity);  
+        } else {  
+          item.marker.setStyle({  
+            fillOpacity: isFadedByHover ? 0.08 : 0.85,  
+            opacity: isFadedByHover ? 0.15 : 1  
+          });  
+        }
+
+        var tooltip = item.marker.getTooltip();  
+        if (tooltip) {  
+          tooltip.setOpacity(isFadedByHover ? 0.1 : 1);  
+        }  
+      }  
+    });  
+  }
+
+  var legend = L.control({position: 'bottomright'});  
+  legend.onAdd = function(map) {  
+    var div = L.DomUtil.create('div', 'legend');
+
+    var html = "<div class='legend-title'>Facility Type</div>";  
+    Object.keys(colors).forEach(function(type) {  
+      html += "<div class='legend-item' data-type='" + type + "'>" +  
+              "<i style='background:" + colors[type] + "'></i>" + type +  
+              "</div>";  
+    });  
+    html += "<div class='legend-hint'>Hover to highlight · Click to toggle</div>";  
+    html += "<div class='legend-new-key'><span class='legend-new-badge'>NEW</span>Opening soon (pulsing halo)</div>";
+
+    div.innerHTML = html;
+
+    L.DomEvent.disableClickPropagation(div);  
+    L.DomEvent.disableScrollPropagation(div);
+
+    return div;  
+  };  
+  legend.addTo(map);
+
+  setTimeout(function() {  
+    var items = document.querySelectorAll('.legend-item');  
+    items.forEach(function(item) {  
+      var type = item.getAttribute('data-type');
+
+      item.addEventListener('mouseenter', function() {  
+        if (!hiddenTypes[type]) {  
+          updateMarkerStyles(type);  
+        }  
+      });
+
+      item.addEventListener('mouseleave', function() {  
+        updateMarkerStyles(null);  
+      });
+
+      item.addEventListener('click', function() {  
+        hiddenTypes[type] = !hiddenTypes[type];  
+        item.classList.toggle('disabled', hiddenTypes[type]);  
+        updateMarkerStyles(null);  
+      });  
+    });  
+  }, 100);  
+</script>  
+</body>  
+</html>  
